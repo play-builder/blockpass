@@ -12,3 +12,13 @@ export class WalletVerificationService {
     } catch (error) {
       return false;
     }
+  }
+
+  static isValidAddress(address: string): boolean {
+    return ethers.utils.isAddress(address);
+  }
+
+  static normalizeAddress(address: string): string {
+    return address.toLowerCase();
+  }
+}
