@@ -53,3 +53,45 @@ contract TicketNFT is ERC721URIStorage, ERC721Enumerable, Ownable {
             originalPrice: originalPrice,
             eventDate: eventDate,
             isUsed: false
+        });
+
+        eventTickets[eventId].push(newTokenId);
+
+        if (marketplaceAddress != address(0)) {
+            setApprovalForAll(marketplaceAddress, true);
+        }
+
+        emit TicketMinted(newTokenId, recipient, eventId, originalPrice);
+        return newTokenId;
+    }
+
+    function batchMintTickets(
+        address recipient,
+        string[] memory tokenURIs,
+        string memory eventId,
+        uint256 originalPrice,
+        uint256 eventDate
+    ) external returns (uint256[] memory) {
+        uint256[] memory tokenIds = new uint256[](tokenURIs.length);
+
+        for (uint256 i = 0; i < tokenURIs.length; i++) {
+            _tokenIds.increment();
+            uint256 newTokenId = _tokenIds.current();
+
+            _mint(recipient, newTokenId);
+            _setTokenURI(newTokenId, tokenURIs[i]);
+
+            ticketMetadata[newTokenId] = TicketMetadata({
+                eventId: eventId,
+                originalPrice: originalPrice,
+                eventDate: eventDate,
+                isUsed: false
+            });
+
+            eventTickets[eventId].push(newTokenId);
+            tokenIds[i] = newTokenId;
+            emit TicketMinted(newTokenId, recipient, eventId, originalPrice);
+        }
+
+        return tokenIds;
+    }
