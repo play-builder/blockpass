@@ -138,3 +138,39 @@ contract TicketMarketplace is ReentrancyGuard, Ownable {
     function completeEscrow(bytes32 escrowId) external nonReentrant {
         Escrow storage escrow = escrows[escrowId];
         require(escrow.buyer != address(0), "Escrow does not exist");
+        require(!escrow.isCompleted && !escrow.isRefunded, "Escrow already settled");
+        require(msg.sender == escrow.buyer || msg.sender == owner(), "Not authorized");
+
+        escrow.isCompleted = true;
+
+        uint256 platformFee = (escrow.amount * platformFeePercent) / PERCENT_BASE;
+        uint256 royalty = (escrow.amount * royaltyPercent) / PERCENT_BASE;
+        uint256 sellerAmount = escrow.amount - platformFee - royalty;
+
+        ticketNFT.safeTransferFrom(escrow.seller, escrow.buyer, escrow.tokenId);
+        payable(escrow.seller).transfer(sellerAmount);
+        payable(owner()).transfer(platformFee + royalty);
+
+        emit EscrowCompleted(escrowId);
+    }
+
+    function refundEscrow(bytes32 escrowId) external nonReentrant {
+        Escrow storage escrow = escrows[escrowId];
+        require(escrow.buyer != address(0), "Escrow does not exist");
+        require(!escrow.isCompleted && !escrow.isRefunded, "Escrow already settled");
+        require(block.timestamp >= escrow.expiresAt || msg.sender == owner(), "Escrow not expired");
+
+        escrow.isRefunded = true;
+        listings[escrow.tokenId].isActive = true;
+        payable(escrow.buyer).transfer(escrow.amount);
+        emit EscrowRefunded(escrowId);
+    }
+
+    function getListing(uint256 tokenId) external view returns (Listing memory) {
+        return listings[tokenId];
+    }
+
+    function getEscrow(bytes32 escrowId) external view returns (Escrow memory) {
+        return escrows[escrowId];
+    }
+}
