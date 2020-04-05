@@ -86,3 +86,55 @@ contract TicketMarketplace is ReentrancyGuard, Ownable {
     }
 
     function cancelListing(uint256 tokenId) external {
+        require(listings[tokenId].seller == msg.sender, "Not the seller");
+        require(listings[tokenId].isActive, "Listing not active");
+        listings[tokenId].isActive = false;
+        emit ListingCancelled(tokenId);
+    }
+
+    function buyTicket(uint256 tokenId) external payable nonReentrant {
+        Listing memory listing = listings[tokenId];
+        require(listing.isActive, "Listing not active");
+        require(msg.value >= listing.price, "Insufficient payment");
+
+        listings[tokenId].isActive = false;
+
+        uint256 platformFee = (listing.price * platformFeePercent) / PERCENT_BASE;
+        uint256 royalty = (listing.price * royaltyPercent) / PERCENT_BASE;
+        uint256 sellerAmount = listing.price - platformFee - royalty;
+
+        ticketNFT.safeTransferFrom(listing.seller, msg.sender, tokenId);
+        payable(listing.seller).transfer(sellerAmount);
+        payable(owner()).transfer(platformFee + royalty);
+
+        if (msg.value > listing.price) {
+            payable(msg.sender).transfer(msg.value - listing.price);
+        }
+
+        emit TicketSold(tokenId, msg.sender, listing.seller, listing.price);
+    }
+
+    function createEscrow(uint256 tokenId) external payable nonReentrant returns (bytes32) {
+        Listing memory listing = listings[tokenId];
+        require(listing.isActive, "Listing not active");
+        require(msg.value >= listing.price, "Insufficient payment");
+
+        bytes32 escrowId = keccak256(abi.encodePacked(tokenId, msg.sender, block.timestamp));
+        escrows[escrowId] = Escrow({
+            buyer: msg.sender,
+            seller: listing.seller,
+            tokenId: tokenId,
+            amount: listing.price,
+            expiresAt: block.timestamp + escrowDuration,
+            isCompleted: false,
+            isRefunded: false
+        });
+
+        listings[tokenId].isActive = false;
+        emit EscrowCreated(escrowId, tokenId, msg.sender, listing.price);
+        return escrowId;
+    }
+
+    function completeEscrow(bytes32 escrowId) external nonReentrant {
+        Escrow storage escrow = escrows[escrowId];
+        require(escrow.buyer != address(0), "Escrow does not exist");
