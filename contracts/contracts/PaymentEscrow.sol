@@ -30,3 +30,47 @@ contract PaymentEscrow is ReentrancyGuard, Ownable {
     event PaymentExpired(bytes32 indexed paymentId, bytes32 indexed orderId);
 
     function createPayment(bytes32 orderId, address seller) external payable nonReentrant returns (bytes32) {
+        require(msg.value > 0, "Payment amount must be greater than 0");
+        require(orderToPayment[orderId] == bytes32(0), "Payment already exists for this order");
+
+        bytes32 paymentId = keccak256(abi.encodePacked(orderId, msg.sender, block.timestamp));
+
+        payments[paymentId] = Payment({
+            orderId: orderId,
+            buyer: msg.sender,
+            seller: seller,
+            amount: msg.value,
+            createdAt: block.timestamp,
+            expiresAt: block.timestamp + defaultExpiration,
+            status: PaymentStatus.PENDING
+        });
+
+        orderToPayment[orderId] = paymentId;
+        emit PaymentCreated(paymentId, orderId, msg.sender, msg.value);
+        return paymentId;
+    }
+
+    function completePayment(bytes32 paymentId) external nonReentrant {
+        Payment storage payment = payments[paymentId];
+        require(payment.buyer != address(0), "Payment does not exist");
+        require(payment.status == PaymentStatus.PENDING, "Payment not pending");
+        require(msg.sender == owner() || msg.sender == payment.seller, "Not authorized");
+
+        payment.status = PaymentStatus.COMPLETED;
+
+        uint256 platformFee = (payment.amount * platformFeePercent) / PERCENT_BASE;
+        uint256 sellerAmount = payment.amount - platformFee;
+
+        payable(payment.seller).transfer(sellerAmount);
+        payable(owner()).transfer(platformFee);
+
+        emit PaymentCompleted(paymentId, payment.orderId);
+    }
+
+    function refundPayment(bytes32 paymentId) external nonReentrant {
+        Payment storage payment = payments[paymentId];
+        require(payment.buyer != address(0), "Payment does not exist");
+        require(payment.status == PaymentStatus.PENDING, "Payment not pending");
+        require(msg.sender == owner() || msg.sender == payment.seller, "Not authorized");
+
+        payment.status = PaymentStatus.REFUNDED;
