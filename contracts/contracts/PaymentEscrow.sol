@@ -74,3 +74,36 @@ contract PaymentEscrow is ReentrancyGuard, Ownable {
         require(msg.sender == owner() || msg.sender == payment.seller, "Not authorized");
 
         payment.status = PaymentStatus.REFUNDED;
+        payable(payment.buyer).transfer(payment.amount);
+        emit PaymentRefunded(paymentId, payment.orderId);
+    }
+
+    function expirePayment(bytes32 paymentId) external nonReentrant {
+        Payment storage payment = payments[paymentId];
+        require(payment.buyer != address(0), "Payment does not exist");
+        require(payment.status == PaymentStatus.PENDING, "Payment not pending");
+        require(block.timestamp >= payment.expiresAt, "Payment not expired yet");
+
+        payment.status = PaymentStatus.EXPIRED;
+        payable(payment.buyer).transfer(payment.amount);
+        emit PaymentExpired(paymentId, payment.orderId);
+    }
+
+    function getPayment(bytes32 paymentId) external view returns (Payment memory) {
+        return payments[paymentId];
+    }
+
+    function getPaymentByOrder(bytes32 orderId) external view returns (Payment memory) {
+        bytes32 paymentId = orderToPayment[orderId];
+        return payments[paymentId];
+    }
+
+    function setDefaultExpiration(uint256 _expiration) external onlyOwner {
+        defaultExpiration = _expiration;
+    }
+
+    function setPlatformFee(uint256 _feePercent) external onlyOwner {
+        require(_feePercent <= 1000, "Fee too high");
+        platformFeePercent = _feePercent;
+    }
+}
