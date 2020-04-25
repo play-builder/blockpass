@@ -131,3 +131,37 @@ describe("BlockPass Contracts", function () {
     });
 
     it("Should complete a payment", async function () {
+      const orderId = ethers.utils.formatBytes32String("order-002");
+      const amount = ethers.utils.parseEther("0.1");
+
+      const tx = await paymentEscrow.connect(buyer).createPayment(orderId, sellerAddress, { value: amount });
+      const receipt = await tx.wait();
+
+      const event = receipt.events?.find((e: any) => e.event === "PaymentCreated");
+      const paymentId = event?.args?.paymentId;
+
+      const sellerBalanceBefore = await seller.getBalance();
+      await paymentEscrow.connect(seller).completePayment(paymentId);
+      const sellerBalanceAfter = await seller.getBalance();
+
+      expect(sellerBalanceAfter.gt(sellerBalanceBefore)).to.be.true;
+    });
+
+    it("Should refund a payment", async function () {
+      const orderId = ethers.utils.formatBytes32String("order-003");
+      const amount = ethers.utils.parseEther("0.1");
+
+      const tx = await paymentEscrow.connect(buyer).createPayment(orderId, sellerAddress, { value: amount });
+      const receipt = await tx.wait();
+
+      const event = receipt.events?.find((e: any) => e.event === "PaymentCreated");
+      const paymentId = event?.args?.paymentId;
+
+      const buyerBalanceBefore = await buyer.getBalance();
+      await paymentEscrow.connect(seller).refundPayment(paymentId);
+      const buyerBalanceAfter = await buyer.getBalance();
+
+      expect(buyerBalanceAfter.gt(buyerBalanceBefore)).to.be.true;
+    });
+  });
+});
