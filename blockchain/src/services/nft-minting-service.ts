@@ -23,3 +23,41 @@ export class NFTMintingService {
     this.contract = new ethers.Contract(
       contractAddress,
       TICKET_NFT_ABI,
+      this.wallet
+    );
+  }
+
+  async mintTicket(
+    recipient: string,
+    tokenURI: string,
+    eventId: string,
+    originalPrice: string,
+    eventDate: number
+  ): Promise<{ tokenId: string; transactionHash: string }> {
+    const priceInWei = ethers.utils.parseEther(originalPrice);
+
+    const tx = await this.contract.mintTicket(
+      recipient,
+      tokenURI,
+      eventId,
+      priceInWei,
+      eventDate
+    );
+
+    const receipt = await tx.wait();
+
+    const event = receipt.events?.find(
+      (e: any) => e.event === "TicketMinted"
+    );
+
+    if (!event) {
+      throw new Error("TicketMinted event not found");
+    }
+
+    return {
+      tokenId: event.args.tokenId.toString(),
+      transactionHash: receipt.transactionHash,
+    };
+  }
+
+  async batchMintTickets(
