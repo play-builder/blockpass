@@ -99,3 +99,29 @@ export class NFTMintingService {
 
   async getTicketMetadata(tokenId: string): Promise<{
     eventId: string;
+    originalPrice: string;
+    eventDate: number;
+    isUsed: boolean;
+  }> {
+    const metadata = await this.contract.getTicketMetadata(tokenId);
+    return {
+      eventId: metadata.eventId,
+      originalPrice: ethers.utils.formatEther(metadata.originalPrice),
+      eventDate: metadata.eventDate.toNumber(),
+      isUsed: metadata.isUsed,
+    };
+  }
+
+  async getTicketsByOwner(ownerAddress: string): Promise<string[]> {
+    const tokenIds = await this.contract.getTicketsByOwner(ownerAddress);
+    return tokenIds.map((id: ethers.BigNumber) => id.toString());
+  }
+
+  async getOwnerOf(tokenId: string): Promise<string> {
+    return await this.contract.ownerOf(tokenId);
+  }
+
+  async getTokenURI(tokenId: string): Promise<string> {
+    return await this.contract.tokenURI(tokenId);
+  }
+}
