@@ -61,3 +61,41 @@ export class NFTMintingService {
   }
 
   async batchMintTickets(
+    recipient: string,
+    tokenURIs: string[],
+    eventId: string,
+    originalPrice: string,
+    eventDate: number
+  ): Promise<{ tokenIds: string[]; transactionHash: string }> {
+    const priceInWei = ethers.utils.parseEther(originalPrice);
+
+    const tx = await this.contract.batchMintTickets(
+      recipient,
+      tokenURIs,
+      eventId,
+      priceInWei,
+      eventDate
+    );
+
+    const receipt = await tx.wait();
+
+    const events = receipt.events?.filter(
+      (e: any) => e.event === "TicketMinted"
+    );
+
+    const tokenIds = events?.map((e: any) => e.args.tokenId.toString()) || [];
+
+    return {
+      tokenIds,
+      transactionHash: receipt.transactionHash,
+    };
+  }
+
+  async useTicket(tokenId: string): Promise<string> {
+    const tx = await this.contract.useTicket(tokenId);
+    const receipt = await tx.wait();
+    return receipt.transactionHash;
+  }
+
+  async getTicketMetadata(tokenId: string): Promise<{
+    eventId: string;
