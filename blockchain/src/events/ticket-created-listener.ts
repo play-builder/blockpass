@@ -24,3 +24,30 @@ export class TicketCreatedListener extends Listener<TicketCreatedEvent> {
       console.log("No IPFS hash found, skipping mint");
       return;
     }
+
+    try {
+      const tokenURI = `ipfs://${data.ipfsHash}`;
+      const eventDate = data.eventDate
+        ? Math.floor(new Date(data.eventDate).getTime() / 1000)
+        : Math.floor(Date.now() / 1000) + 86400 * 30;
+
+      const result = await this.nftService.mintTicket(
+        process.env.PLATFORM_WALLET!,
+        tokenURI,
+        data.id,
+        data.price.toString(),
+        eventDate
+      );
+
+      console.log("NFT minted:", result);
+
+      await new TicketMintedPublisher(redisWrapper.publisher).publish({
+        ticketId: data.id,
+        tokenId: result.tokenId,
+        transactionHash: result.transactionHash,
+      });
+    } catch (error) {
+      console.error("Error minting NFT:", error);
+    }
+  }
+}
