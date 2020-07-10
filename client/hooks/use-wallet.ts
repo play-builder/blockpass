@@ -71,3 +71,35 @@ export const useWallet = () => {
     try {
       const client = buildClient();
       await client.post("/api/users/signout");
+      setAddress(null);
+      setUser(null);
+    } catch (err) {
+      console.error("Failed to sign out:", err);
+    }
+  };
+
+  const signMessage = async (message: string): Promise<string> => {
+    if (typeof window === "undefined" || !window.ethereum) {
+      throw new Error("MetaMask not installed");
+    }
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    return signer.signMessage(message);
+  };
+
+  return {
+    address,
+    user,
+    isConnecting,
+    error,
+    connectWallet,
+    disconnectWallet,
+    signMessage,
+  };
+};
+
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
