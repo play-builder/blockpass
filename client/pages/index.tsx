@@ -41,3 +41,47 @@ const HomePage: NextPage<HomePageProps> = ({ tickets }) => {
     </div>
   );
 };
+
+HomePage.getInitialProps = async (context: NextPageContext) => {
+  const client = buildClient({ req: context.req });
+
+  try {
+    const { data } = await client.get("/api/tickets");
+    return { tickets: data };
+  } catch (err) {
+    return { tickets: [] };
+  }
+};
+
+const styles: { [key: string]: React.CSSProperties } = {
+  hero: {
+    textAlign: "center",
+    marginBottom: "40px",
+  },
+  heroTitle: {
+    fontSize: "36px",
+    fontWeight: "bold",
+    color: "#111827",
+    marginBottom: "10px",
+  },
+  heroSubtitle: {
+    fontSize: "18px",
+    color: "#6b7280",
+  },
+  section: {
+    marginBottom: "40px",
+  },
+  sectionTitle: {
+    fontSize: "24px",
+    fontWeight: "600",
+    color: "#111827",
+    marginBottom: "20px",
+  },
+  emptyText: {
+    color: "#6b7280",
+    textAlign: "center",
+    padding: "40px",
+  },
+};
+
+export default HomePage;
